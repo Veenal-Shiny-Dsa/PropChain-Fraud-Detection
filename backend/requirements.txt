@@ -1,0 +1,15 @@
+# Core (required — API + rule engine work without ML)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+numpy>=1.26.4
+scikit-learn>=1.7.2
+scipy>=1.15.3
+pandas>=2.0.0
+
+# ML models (optional — uncomment to activate GCN/GAT/GraphSAGE/XGBoost)
+# torch>=2.1.0
+# torch-geometric>=2.4.0
+# torch-scatter>=2.1.1
+# torch-sparse>=0.6.17
+# xgboost>=3.2.0
