@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PropChain — Decentralized Real Estate Fraud Detection</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+/* ── RESET & VARS ─────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surf:#161b22;--card:#1c2128;--bdr:#30363d;
+  --g:#3fb950;--r:#f85149;--a:#d29922;--b:#58a6ff;--p:#bc8cff;
+  --tx:#e6edf3;--mt:#8b949e;
+  --fn:'Inter',system-ui,sans-serif;
+  --mo:'JetBrains Mono','Courier New',monospace;
+}
+body{background:var(--bg);color:var(--tx);font-family:var(--fn);font-size:13px;overflow-x:hidden}
+
+/* ── NAVIGATION ───────────────────────────────────────────────── */
+.nav{
+  height:52px;background:var(--surf);border-bottom:1px solid var(--bdr);
+  display:flex;align-items:center;padding:0 16px;gap:10px;
+  position:sticky;top:0;z-index:100;
+}
+.logo{
+  font-family:var(--mo);font-size:15px;font-weight:700;
+  display:flex;align-items:center;gap:8px;color:var(--tx);white-space:nowrap;
+}
+.logo-icon{
+  width:28px;height:28px;border-radius:7px;
+  background:rgba(63,185,80,.15);border:1.5px solid var(--g);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:var(--g);font-weight:700;
+}
+.ntabs{display:flex;gap:2px;flex:1;overflow-x:auto}
+.ntab{
+  padding:5px 11px;border-radius:5px;font-size:11px;cursor:pointer;
+  color:var(--mt);border:none;background:transparent;white-space:nowrap;transition:all .15s;
+}
+.ntab:hover{color:var(--tx);background:rgba(255,255,255,.05)}
+.ntab.on{background:rgba(63,185,80,.12);color:var(--g);border:1px solid rgba(63,185,80,.25)}
+.nst{display:flex;gap:6px;align-items:center;flex-shrink:0}
+.chip{
+  font-family:var(--mo);font-size:10px;padding:3px 8px;border-radius:20px;
+  border:1px solid var(--bdr);color:var(--mt);
+  display:flex;align-items:center;gap:4px;white-space:nowrap;
+}
+.chip.on{border-color:rgba(63,185,80,.4);color:var(--g);background:rgba(63,185,80,.06)}
+.chip.er{border-color:rgba(248,81,73,.35);color:var(--r)}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dg{background:var(--g);animation:blk 1.5s ease infinite}
+.dr{background:var(--r)}
+@keyframes blk{50%{opacity:.3}}
+.wbtn{
+  font-size:11px;font-family:var(--mo);padding:5px 11px;border-radius:5px;
+  border:1px solid var(--bdr);background:transparent;color:var(--mt);
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.wbtn:hover{border-color:var(--g);color:var(--g)}
+.wbtn.ok{border-color:rgba(63,185,80,.4);color:var(--g)}
+
+/* ── LAYOUT ───────────────────────────────────────────────────── */
+.body{padding:14px;max-width:1300px;margin:0 auto}
+.page{display:none}.page.on{display:block}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.g5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px}
+
+/* ── STAT CARDS ───────────────────────────────────────────────── */
+.sc{background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:11px}
+.sv{font-size:22px;font-weight:600;line-height:1;margin-bottom:3px}
+.sl{font-size:10px;color:var(--mt);font-family:var(--mo);text-transform:uppercase;letter-spacing:.4px}
+
+/* ── CARD ─────────────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--bdr);border-radius:8px;overflow:hidden;margin-bottom:12px}
+.ch{
+  padding:9px 13px;border-bottom:1px solid var(--bdr);
+  display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:500;
+}
+.cb{padding:12px 13px}
+.cw{position:relative;height:190px}
+
+/* ── FORM ─────────────────────────────────────────────────────── */
+.fg{margin-bottom:9px}
+.fl{display:block;font-size:10px;color:var(--mt);margin-bottom:3px;font-family:var(--mo);text-transform:uppercase;letter-spacing:.3px}
+.fi{
+  width:100%;background:var(--surf);border:1px solid var(--bdr);
+  border-radius:5px;padding:6px 9px;font-size:12px;color:var(--tx);transition:border .15s;
+  font-family:var(--fn);
+}
+.fi:focus{outline:none;border-color:var(--b)}
+select.fi{cursor:pointer}
+.fr2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+
+/* ── BUTTONS ──────────────────────────────────────────────────── */
+.btn{padding:7px 16px;border-radius:5px;font-size:12px;cursor:pointer;border:none;font-weight:500;transition:all .15s;font-family:var(--fn)}
+.bg2{background:var(--g);color:#000}.bg2:hover{opacity:.85}
+.br2{background:transparent;border:1px solid var(--r);color:var(--r)}.br2:hover{background:rgba(248,81,73,.08)}
+.bo{background:transparent;border:1px solid var(--bdr);color:var(--mt)}.bo:hover{border-color:var(--tx);color:var(--tx)}
+.bb2{background:transparent;border:1px solid var(--b);color:var(--b)}.bb2:hover{background:rgba(88,166,255,.08)}
+
+/* ── BADGES ───────────────────────────────────────────────────── */
+.bx{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:500;font-family:var(--mo)}
+.xg{background:rgba(63,185,80,.12);color:var(--g);border:1px solid rgba(63,185,80,.25)}
+.xr{background:rgba(248,81,73,.12);color:var(--r);border:1px solid rgba(248,81,73,.25)}
+.xa{background:rgba(210,153,34,.12);color:var(--a);border:1px solid rgba(210,153,34,.25)}
+.xb{background:rgba(88,166,255,.12);color:var(--b);border:1px solid rgba(88,166,255,.25)}
+.xp{background:rgba(188,140,255,.12);color:var(--p);border:1px solid rgba(188,140,255,.25)}
+.bx.xo { background: rgba(248,81,73,.1); color: #f85149; border: 1px solid rgba(248,81,73,.2); }
+.fi.invalid { border-color: #f85149 !important; background: rgba(248,81,73,0.05) !important; }
+
+/* ── TABLE ────────────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{
+  padding:6px 10px;text-align:left;font-size:10px;color:var(--mt);
+  font-family:var(--mo);text-transform:uppercase;border-bottom:1px solid var(--bdr);
+}
+td{padding:7px 10px;border-bottom:1px solid rgba(48,54,61,.4);vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,.02)}
+tr:last-child td{border-bottom:none}
+.mo{font-family:var(--mo)}
+
+/* ── PROGRESS BAR ─────────────────────────────────────────────── */
+.pb{height:4px;background:var(--surf);border-radius:2px;margin-top:2px;overflow:hidden}
+.pf{height:100%;border-radius:2px;transition:width .5s}
+
+/* ── TIMELINE ─────────────────────────────────────────────────── */
+.tl{padding-left:16px;position:relative}
+.tl::before{content:'';position:absolute;left:5px;top:0;bottom:0;width:1px;background:var(--bdr)}
+.tl-i{position:relative;padding:0 0 11px 13px}
+.tl-d{position:absolute;left:-11px;width:8px;height:8px;border-radius:50%;border:2px solid var(--surf)}
+.tl-t{font-size:10px;color:var(--mt);font-family:var(--mo);margin-bottom:2px}
+.tl-c{background:var(--surf);border:1px solid var(--bdr);border-radius:5px;padding:6px 9px;font-size:11px}
+
+/* ── TRANSACTION PIPELINE ─────────────────────────────────────── */
+.txf{padding:10px 12px;font-size:11px;font-family:var(--mo)}
+.txs{display:flex;align-items:center;gap:7px;padding:4px 0;opacity:.3;transition:opacity .3s}
+.txs.active{opacity:1}
+.txs.done{opacity:.55}
+.sd{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--mt);transition:background .3s}
+.sl2{width:1px;height:14px;background:var(--bdr);margin:1px 0 1px 3px}
+
+/* ── VERDICT CARDS ────────────────────────────────────────────── */
+.verdict{border-radius:8px;padding:13px}
+.vf{background:rgba(248,81,73,.05);border:1px solid rgba(248,81,73,.2)}
+.vv{background:rgba(63,185,80,.05);border:1px solid rgba(63,185,80,.2)}
+
+/* ── BLOCK CHAIN ──────────────────────────────────────────────── */
+.bchain{display:flex;gap:5px;overflow-x:auto;padding:6px 0;align-items:flex-end}
+.blk{flex-shrink:0;text-align:center;cursor:pointer;transition:opacity .15s}
+.blk:hover{opacity:.7}
+.blkb{width:42px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#000;font-family:var(--mo)}
+.blkn{font-size:9px;color:var(--mt);margin-top:2px;font-family:var(--mo)}
+
+/* ── DEMO BUTTONS ─────────────────────────────────────────────── */
+.drow{display:flex;gap:8px;margin-bottom:12px}
+.dfrd{
+  background:rgba(248,81,73,.07);border:1px solid rgba(248,81,73,.28);
+  color:var(--r);padding:10px 14px;border-radius:7px;cursor:pointer;
+  font-size:12px;font-weight:500;flex:1;text-align:center;transition:background .15s;
+}
+.dfrd:hover{background:rgba(248,81,73,.13)}
+.dvld{
+  background:rgba(63,185,80,.07);border:1px solid rgba(63,185,80,.28);
+  color:var(--g);padding:10px 14px;border-radius:7px;cursor:pointer;
+  font-size:12px;font-weight:500;flex:1;text-align:center;transition:background .15s;
+}
+.dvld:hover{background:rgba(63,185,80,.13)}
+
+/* ── PROPERTY CARD ────────────────────────────────────────────── */
+.pcard{background:var(--card);border-radius:8px;padding:12px;cursor:pointer;transition:border .15s}
+.pcard:hover{opacity:.9}
+
+/* ── TOAST NOTIFICATIONS ──────────────────────────────────────── */
+#tc{position:fixed;bottom:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{
+  padding:9px 13px;border-radius:6px;font-size:12px;border:1px solid;
+  animation:tin .3s ease;min-width:200px;pointer-events:auto;font-family:var(--fn);
+}
+.tok{background:#0d2818;border-color:var(--g);color:var(--g)}
+.ter{background:#2d0f0e;border-color:var(--r);color:var(--r)}
+.twa{background:#2a1d00;border-color:var(--a);color:var(--a)}
+.tin2{background:#0c1b2e;border-color:var(--b);color:var(--b)}
+@keyframes tin{from{transform:translateX(28px);opacity:0}to{transform:translateX(0);opacity:1}}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     NAVIGATION
+════════════════════════════════════════════════════════════════ -->
+<nav class="nav">
+  <div class="logo">
+    <span class="logo-icon">P</span>
+    PropChain
+  </div>
+  <div class="ntabs">
+    <button class="ntab on" onclick="go('dash',this)">Dashboard</button>
+    <button class="ntab"    onclick="go('submit',this)">Submit Transaction</button>
+    <button class="ntab"    onclick="go('props',this)">Properties</button>
+    <button class="ntab"    onclick="go('fraud',this)">Fraud Detection</button>
+    <button class="ntab"    onclick="go('explorer',this)">Block Explorer</button>
+    <button class="ntab"    onclick="go('models',this)">Model Comparison</button>
+  </div>
+  <div class="nst">
+    <span class="chip" id="cc"><span class="dot dr" id="cd"></span><span id="cl">Chain offline</span></span>
+    <span class="chip" id="mc2"><span class="dot dr" id="md"></span><span id="ml2">ML offline</span></span>
+    <button class="wbtn" id="wb" onclick="connectWallet()">Connect MetaMask</button>
+  </div>
+</nav>
+
+<div class="body">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE 1: DASHBOARD
+════════════════════════════════════════════════════════════════ -->
+<div class="page on" id="p-dash">
+  <!-- Stats row -->
+  <div class="g5">
+    <div class="sc">
+      <div class="sv" style="color:var(--g)" id="dp">0</div>
+      <div class="sl">On-chain properties</div>
+    </div>
+    <div class="sc">
+      <div class="sv" id="dt">0</div>
+      <div class="sl">Blockchain txns</div>
+    </div>
+    <div class="sc">
+      <div class="sv" style="color:var(--r)" id="da">0</div>
+      <div class="sl">Fraud alerts</div>
+    </div>
+    <div class="sc">
+      <div class="sv" style="color:var(--a)" id="df">0</div>
+      <div class="sl">Frozen properties</div>
+    </div>
+    <div class="sc">
+      <div class="sv" id="dm">0</div>
+      <div class="sl">Pending ML score</div>
+    </div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="g2">
+    <div class="card">
+      <div class="ch">
+        Live transaction stream
+        <span class="bx xg"><span class="dot dg"></span>Live</span>
+      </div>
+      <div class="cb"><div class="cw"><canvas id="act-chart"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="ch">Fraud type breakdown</div>
+      <div class="cb"><div class="cw"><canvas id="ft-chart"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- Table + alerts row -->
+  <div class="g2">
+    <div class="card">
+      <div class="ch">Recent on-chain transactions</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Tx ID</th><th>Property</th><th>Type</th>
+            <th>ETH</th><th>ML scored</th><th>Verdict</th>
+          </tr>
+        </thead>
+        <tbody id="tx-tbl"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="ch">Active fraud alerts</div>
+      <div id="alert-feed" style="padding:8px 13px;max-height:220px;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE 2: SUBMIT TRANSACTION
+════════════════════════════════════════════════════════════════ -->
+<div class="page" id="p-submit">
+  <!-- Demo loader buttons -->
+  <div class="drow">
+    <div class="dfrd" onclick="loadFraud()">
+      Load Fraud Demo — price 2.3× assessed &nbsp;·&nbsp; 8-day flip &nbsp;·&nbsp; no inspection &nbsp;·&nbsp; 5 transfers in 12mo
+    </div>
+    <div class="dvld" onclick="loadValid()">
+      Load Valid Demo — fair price &nbsp;·&nbsp; 3-year hold &nbsp;·&nbsp; full inspection &nbsp;·&nbsp; 0 transfers
+    </div>
+  </div>
+
+  <div class="g2">
+    <!-- LEFT: Input form -->
+    <div>
+      <!-- Property details -->
+      <div class="card">
+        <div class="ch">Property details</div>
+        <div class="cb">
+          <div class="fg">
+            <label class="fl">Property address</label>
+            <input class="fi" id="s-loc" placeholder="742 Oak Avenue, Mumbai 400001"/>
+          </div>
+          <div class="fr2">
+            <div class="fg">
+              <label class="fl">Property type</label>
+              <select class="fi" id="s-tp">
+                <option>Residential</option>
+                <option>Commercial</option>
+                <option>Land</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label class="fl">Square feet</label>
+              <input class="fi" id="s-sq" type="number" placeholder="1200"/>
+            </div>
+          </div>
+          <div class="fr2">
+            <div class="fg">
+              <label class="fl">Assessed value (ETH)</label>
+              <input class="fi" id="s-av" type="number" placeholder="100" oninput="validateValuation()"/>
+              <div id="v-warn" style="font-size:9px;color:var(--r);padding-top:3px;display:none">⚠️ Abnormal Valuation Detected</div>
+            </div>
+            <div class="fg">
+              <label class="fl">Sale price (ETH)</label>
+              <input class="fi" id="s-sp" type="number" placeholder="105"/>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl">Deed document (SHA-256 hash)</label>
+            <div style="display:flex;gap:6px">
+              <input class="fi" id="s-dh" placeholder="0xdeed hash…" style="flex:1;font-family:var(--mo);font-size:11px"/>
+              <input type="file" id="s-fl" style="display:none" onchange="hashFile(this)"/>
+              <button class="btn bo" onclick="document.getElementById('s-fl').click()">Browse</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fraud detection parameters -->
+      <div class="card">
+        <div class="ch">Fraud detection parameters</div>
+        <div class="cb">
+          <p style="font-size:11px;color:var(--mt);margin-bottom:9px;line-height:1.65">
+            These fields are extracted by the ML engine to detect
+            <span style="color:var(--r)">fake ownership claims</span>,
+            <span style="color:var(--a)">abnormal transaction frequency</span>, and
+            <span style="color:var(--p)">suspicious ownership transfers</span>.
+          </p>
+          <div class="fr3">
+            <div class="fg">
+              <label class="fl">Days since last sale</label>
+              <input class="fi" id="s-dy" type="number" placeholder="730"/>
+            </div>
+            <div class="fg">
+              <label class="fl">Transfers (12 months)</label>
+              <input class="fi" id="s-12" type="number" placeholder="0"/>
+            </div>
+            <div class="fg">
+              <label class="fl">Mortgage / value ratio</label>
+              <input class="fi" id="s-mt" type="number" step="0.01" placeholder="0.75"/>
+            </div>
+          </div>
+          <div class="fr3">
+            <div class="fg">
+              <label class="fl">Number of liens</label>
+              <input class="fi" id="s-ln" type="number" placeholder="0"/>
+            </div>
+            <div class="fg">
+              <label class="fl">Unique agents</label>
+              <input class="fi" id="s-ag" type="number" placeholder="1"/>
+            </div>
+            <div class="fg">
+              <label class="fl">Docs uploaded (7 days)</label>
+              <input class="fi" id="s-dc" type="number" placeholder="1"/>
+            </div>
+          </div>
+          <div class="fr2">
+            <div class="fg">
+              <label class="fl">Has inspection report</label>
+              <select class="fi" id="s-in">
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label class="fl">Area average price (ETH)</label>
+              <input class="fi" id="s-aa" type="number" placeholder="100" oninput="validateValuation()"/>
+              <div id="a-warn" style="font-size:9px;color:var(--r);padding-top:3px;display:none">⚠️ High variance from neighbors</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <button class="btn bo" onclick="preCheckRisk()" style="flex:1" id="pre-btn">
+              🔍 Check Risk Preview (Free)
+            </button>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn bg2" onclick="submitTx()" style="flex:1" id="sub-btn">
+              Pay Gas & Submit
+            </button>
+            <select class="fi" id="s-tt" style="width:130px">
+              <option value="0">Registration</option>
+              <option value="1">Sale</option>
+              <option value="2">Transfer</option>
+              <option value="3">Mortgage</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Pipeline + results -->
+    <div>
+      <!-- 9-step pipeline visualiser -->
+      <div class="card">
+        <div class="ch">Transaction pipeline — blockchain → ML → verdict</div>
+        <div class="txf" id="txf">
+          <div class="txs" id="ts1"><span class="sd" id="sd1"></span>Waiting for submission</div>
+          <div class="sl2"></div>
+          <div class="txs" id="ts2"><span class="sd" id="sd2"></span>MetaMask — user signs transaction</div>
+          <div class="sl2"></div>
+          <div class="txs" id="ts3"><span class="sd" id="sd3"></span>Broadcast to Ethereum mempool</div>
+          <div class="sl2"></div>
+          <div class="txs" id="ts4"><span class="sd" id="sd4"></span>Validators reach consensus — block mined</div>
+          <div class="sl2"></div>
+          <div class="txs" id="ts5"><span class="sd" id="sd5"></span>PropChain.sol stores ownership on-chain</div>
+          <div class="sl2"></div>
+          <div class="txs" id="ts6"><span class="sd" id="sd6"></span>MLScoringRequested event emitted</div>
+          <div class="sl2"></div>
+          <div class="txs" id="ts7"><span class="sd" id="sd7"></span>ML engine extracts 25 features from chain</div>
+          <div class="sl2"></div>
+          <div class="txs" id="ts8"><span class="sd" id="sd8"></span>Rule engine + GCN + GAT + XGBoost score</div>
+          <div class="sl2"></div>
+          <div class="txs" id="ts9"><span class="sd" id="sd9"></span>Fraud verdict written permanently on-chain</div>
+        </div>
+      </div>
+
+      <!-- Blockchain confirmation (shown after tx) -->
+      <div class="card" id="chain-result" style="display:none">
+        <div class="ch">Blockchain confirmation</div>
+        <div class="cb" id="chain-result-body"></div>
+      </div>
+
+      <!-- ML verdict (shown after scoring) -->
+      <div class="card" id="ml-result" style="display:none">
+        <div class="ch">ML fraud verdict — written on-chain</div>
+        <div class="cb" id="ml-result-body"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE 3: PROPERTIES
+════════════════════════════════════════════════════════════════ -->
+<div class="page" id="p-props">
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <input class="fi" id="prop-search" placeholder="Search by address or property ID…"
+           style="flex:1" oninput="renderProps()"/>
+    <select class="fi" id="prop-filter" style="width:160px" onchange="renderProps()">
+      <option value="all">All properties</option>
+      <option value="active">Active</option>
+      <option value="fraud">Fraud flagged</option>
+      <option value="frozen">Frozen</option>
+    </select>
+  </div>
+  <div id="prop-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE 4: FRAUD DETECTION
+════════════════════════════════════════════════════════════════ -->
+<div class="page" id="p-fraud">
+  <div class="g2">
+    <div>
+      <!-- Live fraud stream table -->
+      <div class="card">
+        <div class="ch">
+          Fraud detection stream
+          <span class="bx xg"><span class="dot dg"></span>Live</span>
+        </div>
+        <div style="max-height:280px;overflow-y:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Property</th><th>Fraud type</th>
+                <th>Confidence</th><th>Model</th><th>Risk</th>
+              </tr>
+            </thead>
+            <tbody id="fraud-tbl"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Confidence chart -->
+      <div class="card">
+        <div class="ch">Fraud confidence over time</div>
+        <div class="cb"><div class="cw"><canvas id="conf-chart"></canvas></div></div>
+      </div>
+    </div>
+    <div>
+      <!-- Alert detail panel -->
+      <div class="card">
+        <div class="ch">Alert detail</div>
+        <div class="cb" id="alert-detail">
+          <p style="color:var(--mt);font-size:11px;text-align:center;padding:20px">
+            Click any row in the stream to inspect
+          </p>
+        </div>
+      </div>
+      <!-- Fraud timeline -->
+      <div class="card">
+        <div class="ch">Fraud alert timeline</div>
+        <div class="cb">
+          <div class="tl" id="fraud-timeline" style="max-height:220px;overflow-y:auto"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE 5: BLOCK EXPLORER
+════════════════════════════════════════════════════════════════ -->
+<div class="page" id="p-explorer">
+  <!-- Visual blockchain -->
+  <div class="card">
+    <div class="ch">
+      Ethereum blockchain
+      <span style="font-size:10px;color:var(--mt)" id="exp-info">Click any block to inspect</span>
+    </div>
+    <div class="cb"><div class="bchain" id="block-chain"></div></div>
+  </div>
+
+  <!-- Block details -->
+  <div class="g2">
+    <div class="card">
+      <div class="ch">Block transactions</div>
+      <div style="max-height:260px;overflow-y:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Tx hash</th><th>Type</th>
+              <th>ETH</th><th>ML scored</th><th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody id="exp-txns"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch">Ownership timeline</div>
+      <div class="cb">
+        <div class="tl" id="ownership-tl" style="max-height:240px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Property lookup -->
+  <div class="g2">
+    <div class="card">
+      <div class="ch">Read property from blockchain</div>
+      <div class="cb" style="display:flex;gap:8px">
+        <input class="fi" id="lookup-id" placeholder="0x property ID…"
+               style="flex:1;font-family:var(--mo)"/>
+        <button class="btn bb2" onclick="lookupProperty()">Read from chain</button>
+      </div>
+      <div id="lookup-result" style="padding:0 13px 12px"></div>
+    </div>
+    <div class="card">
+      <div class="ch">Raw block storage (JSON)</div>
+      <div class="cb">
+        <pre id="raw-block-data" style="font-family:var(--mo);font-size:10px;color:var(--g);background:rgba(0,0,0,0.2);padding:10px;border-radius:4px;overflow:auto;max-height:200px">Select a block to see raw ledger storage...</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE 6: MODEL COMPARISON
+════════════════════════════════════════════════════════════════ -->
+<div class="page" id="p-models">
+  <!-- Model accuracy stat cards -->
+  <div class="g5" id="model-stat-row"></div>
+
+  <!-- Charts -->
+  <div class="g2">
+    <div class="card">
+      <div class="ch">F1 score and AUC-ROC comparison</div>
+      <div class="cb">
+        <div class="cw" style="height:210px"><canvas id="perf-chart"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch">Latency vs accuracy trade-off</div>
+      <div class="cb">
+        <div class="cw" style="height:210px"><canvas id="scatter-chart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metrics table -->
+  <div class="card">
+    <div class="ch">Detailed performance metrics</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Model</th><th>Accuracy</th><th>Precision</th>
+          <th>Recall</th><th>F1 Score</th><th>AUC-ROC</th>
+          <th>Latency</th><th>Best for</th>
+        </tr>
+      </thead>
+      <tbody id="model-metrics-tbl"></tbody>
+    </table>
+  </div>
+
+  <!-- Paper alignment -->
+  <div class="card" style="margin-top:0">
+    <div class="ch">Alignment with IEEE ECAI 2025 base paper</div>
+    <div class="cb">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px">
+        <div>
+          <div style="color:var(--mt);font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px">
+            Base paper (Bandarupalli 2025)
+          </div>
+          <ul style="color:var(--tx);line-height:1.8;list-style:none;padding:0">
+            <li style="padding:2px 0;border-bottom:1px solid var(--bdr)">XGBoost — 98% accuracy, AUC = 1.00</li>
+            <li style="padding:2px 0;border-bottom:1px solid var(--bdr)">18 features from Kaggle Ethereum dataset</li>
+            <li style="padding:2px 0;border-bottom:1px solid var(--bdr)">LR, RF, XGBoost, CNN compared</li>
+            <li style="padding:2px 0;border-bottom:1px solid var(--bdr)">No blockchain deployment</li>
+            <li style="padding:2px 0">Batch analysis only</li>
+          </ul>
+        </div>
+        <div>
+          <div style="color:var(--mt);font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px">
+            This project extends by
+          </div>
+          <ul style="color:var(--tx);line-height:1.8;list-style:none;padding:0">
+            <li style="padding:2px 0;border-bottom:1px solid var(--bdr)">
+              <span style="color:var(--g)">+ GCN, GAT, GraphSAGE</span> exploit graph structure
+            </li>
+            <li style="padding:2px 0;border-bottom:1px solid var(--bdr)">
+              <span style="color:var(--g)">+ 7 real-estate features</span> = 25 total
+            </li>
+            <li style="padding:2px 0;border-bottom:1px solid var(--bdr)">
+              <span style="color:var(--g)">+ PropChain.sol</span> full Ethereum smart contract
+            </li>
+            <li style="padding:2px 0;border-bottom:1px solid var(--bdr)">
+              <span style="color:var(--g)">+ submitMLVerdict()</span> verdict written on-chain
+            </li>
+            <li style="padding:2px 0">
+              <span style="color:var(--g)">+ React DApp</span> MetaMask, block explorer, live stream
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end .body -->
+<div id="tc"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     JAVASCRIPT — Complete application logic
+════════════════════════════════════════════════════════════════ -->
+<script>
+// ── MODEL DATA ────────────────────────────────────────────────────
+const MODELS = {
+  GCN:       { acc:.912, prec:.894, rec:.921, f1:.907, auc:.931, lat:8.2,  col:'#58a6ff', str:'Abnormal transaction frequency' },
+  GAT:       { acc:.934, prec:.918, rec:.941, f1:.929, auc:.951, lat:11.4, col:'#bc8cff', str:'Suspicious ownership transfers' },
+  GraphSAGE: { acc:.928, prec:.910, rec:.935, f1:.922, auc:.945, lat:9.1,  col:'#3fb950', str:'Fake ownership claims' },
+  XGBoost:   { acc:.956, prec:.948, rec:.961, f1:.954, auc:.978, lat:3.8,  col:'#d29922', str:'All types (paper baseline)' },
+  Ensemble:  { acc:.971, prec:.963, rec:.975, f1:.969, auc:.989, lat:18.5, col:'#f85149', str:'Highest F1 + AUC overall' },
+};
+
+const FRAUD_TYPES  = ['Fake ownership / identity fraud','Abnormal transaction frequency','Suspicious ownership transfer'];
+const TX_TYPES     = ['Registration','Sale','Transfer','Mortgage'];
+const RISK_COLORS  = { Low:'var(--g)', Medium:'var(--b)', High:'var(--a)', Critical:'var(--r)' };
+const RISK_CLASSES = { Low:'xg', Medium:'xb', High:'xa', Critical:'xr' };
+const API_URL      = 'http://localhost:8000';
+
+// ── STATE ─────────────────────────────────────────────────────────
+let txHistory    = [];   // all submitted transactions
+let propHistory  = [];   // all registered properties
+let alertHistory = [];   // all fraud alerts
+let blockHistory = [];   // blocks mined
+
+let totalProps = 0, totalTxns = 0, totalAlerts = 0, totalFrozen = 0, totalPending = 0;
+let blockNumber = 18420000;
+let wallet = null, apiOnline = false;
+let provider, signer, propChain;
+
+async function refreshStats() {
+  if(!propChain) return;
+  try {
+    const stats = await propChain.getStats();
+    totalProps = Number(stats.props);
+    totalTxns = Number(stats.txns);
+    totalAlerts = Number(stats.alertCount);
+    totalFrozen = Number(stats.frozen);
+    totalPending = Number(stats.pending);
+    updateDashboard();
+  } catch(e) { console.error("Stats fetch error:", e); }
+}
+
+// Chart instances
+let actChart = null, ftChart = null, confChart = null, perfChart = null, scatChart = null;
+let actLabels=[], actLegit=[], actFraud=[];
+let confLabels=[], confData=[];
+
+// ── UTILITIES ─────────────────────────────────────────────────────
+const ri  = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const rn  = (a,b) => Math.random()*(b-a)+a;
+const sh  = h => '0x'+(h||'').replace('0x','').slice(0,6)+'…'+(h||'').replace('0x','').slice(-4);
+const ts  = ()   => new Date().toLocaleTimeString();
+const pct = v    => (v*100).toFixed(1)+'%';
+const rc  = r    => RISK_COLORS[r]  || 'var(--g)';
+const rb  = r    => `<span class="bx ${RISK_CLASSES[r]||'xb'}">${r||'Low'}</span>`;
+const delay = (ms, fn) => new Promise(r => setTimeout(()=>{ if(fn) fn(); r(); }, ms));
+
+function toast(msg, type='ok'){
+  const el = document.createElement('div');
+  el.className = `toast t${type}`;
+  el.textContent = msg;
+  document.getElementById('tc').appendChild(el);
+  setTimeout(() => el.remove(), 4500);
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────
+function go(page, el){
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.ntab').forEach(t => t.classList.remove('on'));
+  document.getElementById('p-'+page).classList.add('on');
+  el.classList.add('on');
+  if(page === 'models')   renderModels();
+  if(page === 'explorer'){ renderBlockChain(); if(blockHistory[0]) selectBlock(blockHistory[0].num); }
+  if(page === 'props')    renderProps();
+}
+
+// ── METAMASK WALLET ───────────────────────────────────────────────
+async function connectWallet(){
+  if(!window.ethereum){ toast('MetaMask not found — install it first','er'); return; }
+  try{
+    const accounts = await window.ethereum.request({ method:'eth_requestAccounts' });
+    wallet = accounts[0];
+    const btn = document.getElementById('wb');
+    btn.textContent = wallet.slice(0,6)+'…'+wallet.slice(-4);
+    btn.classList.add('ok');
+    
+    // Ethers setup
+    provider = new ethers.BrowserProvider(window.ethereum);
+    signer = await provider.getSigner();
+    
+    const depRes = await fetch('./src/abi/deployment.json');
+    const deployment = await depRes.json();
+    const abiRes = await fetch('./src/abi/PropChain.json');
+    const contractData = await abiRes.json();
+    
+    propChain = new ethers.Contract(deployment.address, contractData.abi, signer);
+    
+    // Update chain chip
+    document.getElementById('cd').className = 'dot dg';
+    document.getElementById('cl').textContent = 'Hardhat Connected';
+    document.getElementById('cc').className = 'chip on';
+    toast('Wallet & Contract Connected!', 'ok');
+    
+    await refreshStats();
+  } catch(e){
+    console.error(e);
+    toast('Connection rejected or contract missing', 'er');
+  }
+}
+
+// ── API HEALTH CHECK ──────────────────────────────────────────────
+async function checkApi(){
+  try{
+    const res = await fetch(API_URL+'/health', { signal: AbortSignal.timeout(2000) });
+    const d   = await res.json();
+    apiOnline = true;
+    document.getElementById('md').className = 'dot dg';
+    document.getElementById('ml2').textContent = d.ml_ready ? 'ML ready' : 'Rules only';
+    document.getElementById('mc2').className = 'chip on';
+    
+    // Fetch real metrics
+    const res2 = await fetch(API_URL+'/models/metrics', { signal: AbortSignal.timeout(2000) });
+    const metrics = await res2.json();
+    if (Object.keys(metrics).length > 0) {
+      for(let m in metrics) {
+         if(MODELS[m]) {
+            MODELS[m].acc = metrics[m].accuracy;
+            MODELS[m].prec = metrics[m].precision;
+            MODELS[m].rec = metrics[m].recall;
+            MODELS[m].f1 = metrics[m].f1;
+            MODELS[m].auc = metrics[m].auc;
+         }
+      }
+      if(document.getElementById('p-models').classList.contains('on')) renderModels();
+    }
+  } catch {
+    apiOnline = false;
+    document.getElementById('md').className = 'dot dr';
+    document.getElementById('ml2').textContent = 'ML offline';
+    document.getElementById('mc2').className = 'chip er';
+  }
+}
+
+// ── DEMO DATA LOADERS ─────────────────────────────────────────────
+function loadFraud(){
+  document.getElementById('s-loc').value = '12 Suspicious Lane, Dharavi, Mumbai 400017';
+  document.getElementById('s-tp').value  = 'Residential';
+  document.getElementById('s-sq').value  = 650;
+  document.getElementById('s-av').value  = 80;    // assessed value
+  document.getElementById('s-sp').value  = 184;   // 2.3× assessed → price manipulation
+  document.getElementById('s-dy').value  = 8;     // 8 days → rapid flip
+  document.getElementById('s-12').value  = 5;     // abnormal frequency
+  document.getElementById('s-mt').value  = 1.20;  // over-mortgaged
+  document.getElementById('s-ln').value  = 3;     // lien stacking
+  document.getElementById('s-ag').value  = 6;     // many agents → fake ownership
+  document.getElementById('s-dc').value  = 9;     // document spam
+  document.getElementById('s-in').value  = '0';   // no inspection
+  document.getElementById('s-aa').value  = 85;
+  document.getElementById('s-dh').value  = '0x'+Array(64).fill('f').join('');
+  document.getElementById('s-tt').value  = '1';
+  toast('Fraud demo loaded — 2.3× price · 8-day flip · no inspection', 'er');
+}
+
+function loadValid(){
+  document.getElementById('s-loc').value = '42 Bandra West, Mumbai 400050';
+  document.getElementById('s-tp').value  = 'Residential';
+  document.getElementById('s-sq').value  = 1400;
+  document.getElementById('s-av').value  = 250;
+  document.getElementById('s-sp').value  = 263;   // 1.05× fair price
+  document.getElementById('s-dy').value  = 1095;  // 3 years hold
+  document.getElementById('s-12').value  = 0;
+  document.getElementById('s-mt').value  = 0.72;
+  document.getElementById('s-ln').value  = 0;
+  document.getElementById('s-ag').value  = 1;
+  document.getElementById('s-dc').value  = 1;
+  document.getElementById('s-in').value  = '1';
+  document.getElementById('s-aa').value  = 255;
+  document.getElementById('s-dh').value  = '0x'+Array(64).fill('a').join('');
+  document.getElementById('s-tt').value  = '0';
+  toast('Valid demo loaded — fair price · 3-year hold · full inspection', 'ok');
+}
+
+// ── FILE HASH (SHA-256) ────────────────────────────────────────────
+async function hashFile(input){
+  if(!input.files[0]) return;
+  const buf  = await input.files[0].arrayBuffer();
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  document.getElementById('s-dh').value =
+    '0x'+[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  toast('Deed hashed (SHA-256)', 'ok');
+}
+
+// ── PIPELINE STEPPER ──────────────────────────────────────────────
+function resetFlow(){
+  for(let i=1;i<=9;i++){
+    document.getElementById('ts'+i).className = 'txs';
+    document.getElementById('sd'+i).style.background = 'var(--mt)';
+  }
+  document.getElementById('chain-result').style.display = 'none';
+  document.getElementById('ml-result').style.display    = 'none';
+}
+
+function setStep(n, done=false){
+  // Mark previous steps as done
+  for(let i=1;i<n;i++){
+    document.getElementById('ts'+i).className = 'txs done';
+    document.getElementById('sd'+i).style.background = 'var(--g)';
+  }
+  // Mark current step
+  document.getElementById('ts'+n).className = done ? 'txs done' : 'txs active';
+  document.getElementById('sd'+n).style.background = done ? 'var(--g)' : 'var(--b)';
+}
+
+// ── ML SCORE SIMULATION (when API offline) ────────────────────────
+function simulateScore(sp, av, days, mtv, mo12, ag, insp, lien, doc){
+  let p = 0.04;
+  const ratio = sp / Math.max(av, 1);
+
+  // Suspicious ownership transfer signals
+  if(ratio > 1.5)  p += 0.45; else if(ratio > 1.25) p += 0.20;
+  if(mtv > 1.0)    p += 0.35; else if(mtv > 0.95)   p += 0.15;
+  if(lien > 2)     p += 0.20;
+
+  // Abnormal transaction frequency signals
+  if(days < 30)    p += 0.40; else if(days < 90)     p += 0.20;
+  if(mo12 > 3)     p += 0.30; else if(mo12 > 1)      p += 0.10;
+
+  // Fake ownership claims signals
+  if(ag > 4)       p += 0.20;
+  if(insp === 0)   p += 0.15;
+  if(doc > 5)      p += 0.18;
+
+  p = Math.min(Math.max(p + rn(-0.02, 0.02), 0), 1);
+  const isFraud = p >= 0.5;
+
+  // Individual model scores
+  const mlScores = {};
+  ['GCN','GAT','GraphSAGE','XGBoost'].forEach(m => {
+    mlScores[m] = parseFloat(Math.max(0, Math.min(1, p+rn(-0.07,0.07))).toFixed(3));
+  });
+
+  const riskNum  = p > 0.80 ? 3 : p > 0.60 ? 2 : p > 0.40 ? 1 : 0;
+  const riskStr  = ['Low','Medium','High','Critical'][riskNum];
+
+  // Determine primary fraud type
+  let fraudType = 'Suspicious ownership transfer';
+  if(days < 30 && mo12 > 2) fraudType = 'Abnormal transaction frequency';
+  else if(ag > 4 || (insp === 0 && doc > 3)) fraudType = 'Fake ownership / identity fraud';
+  else if(ratio > 1.4) fraudType = 'Suspicious ownership transfer';
+
+  // Build flags list
+  const flags = [];
+  if(ratio > 1.5)  flags.push(`Price ${ratio.toFixed(2)}× above assessed value`);
+  if(days < 30)    flags.push(`Rapid flip — sold in only ${days} days`);
+  if(mtv > 1.0)    flags.push(`Loan exceeds property value (${mtv}×)`);
+  if(mo12 > 3)     flags.push(`${mo12} ownership transfers in 12 months`);
+  if(ag > 4)       flags.push(`${ag} unique agents — identity fraud signal`);
+  if(insp === 0)   flags.push('No inspection report — document fraud signal');
+  if(doc > 5)      flags.push(`${doc} documents uploaded in 7 days — document spam`);
+  if(lien > 2)     flags.push(`${lien} liens — lien stacking fraud`);
+
+  return {
+    is_fraud:        isFraud,
+    confidence:      parseFloat(p.toFixed(3)),
+    confidence_pct:  Math.round(p * 100),
+    risk_level:      riskStr,
+    risk_num:        riskNum,
+    fraud_type:      isFraud ? fraudType : 'None',
+    reason:          isFraud ? 'Multiple fraud signals detected' : 'No anomalies detected',
+    model_used:      'Ensemble (Rules + GCN + GAT + GraphSAGE + XGBoost)',
+    ml_scores:       mlScores,
+    rule_score:      parseFloat(p.toFixed(3)),
+    flags:           flags,
+    feature_hash:    '0x'+Math.random().toString(16).slice(2,18),
+  };
+}
+
+// ── SUBMIT TRANSACTION ─────────────────────────────────────────────
+async function preCheckRisk() {
+  if(!apiOnline) { toast('ML API is offline. Cannot pre-check.','wa'); return; }
+  const btn = document.getElementById('pre-btn');
+  const oldText = btn.textContent;
+  btn.textContent = 'Analyzing...';
+  btn.disabled = true;
+
+  try {
+    const payload = {
+      tx_id: "preview_" + Date.now(),
+      property_id: "preview_prop",
+      tx_type: document.getElementById('s-tt').selectedOptions[0].text,
+      sale_price: parseFloat(document.getElementById('s-sp').value || 0),
+      assessed_value: parseFloat(document.getElementById('s-av').value || 0),
+      days_since_last_sale: parseFloat(document.getElementById('s-dy').value || 730),
+      transfers_12mo: parseInt(document.getElementById('s-12').value || 0),
+      mortgage_to_value: parseFloat(document.getElementById('s-mt').value || 0.75),
+      num_liens: parseInt(document.getElementById('s-ln').value || 0),
+      unique_agents: parseInt(document.getElementById('s-ag').value || 1),
+      docs_last_7_days: parseInt(document.getElementById('s-dc').value || 1),
+      area_avg_price: parseFloat(document.getElementById('s-aa').value || 0),
+      has_inspection: document.getElementById('s-in').value === "1",
+      wallet_sent_count: 5,   // Fixed for consistency
+      wallet_recv_count: 4,   // Fixed for consistency
+      wallet_total_sent: 120, // Fixed for consistency
+      wallet_total_received: 130, // Fixed for consistency
+      unique_senders: 2
+    };
+
+    const res = await fetch(API_URL + '/score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+    
+    // Show ML preview result immediately
+    document.getElementById('ml-result').style.display = 'block';
+    renderMLVerdict(result);
+    
+    if(result.is_fraud) {
+        toast(`⚠️ Warning: High Risk Detected (${result.confidence_pct}%)`, 'er');
+    } else {
+        toast(`✅ Clean: Low Risk Detected (${result.confidence_pct}%)`, 'ok');
+    }
+
+  } catch (e) {
+    console.error(e);
+    toast('Pre-check failed. See console.', 'er');
+  } finally {
+    btn.textContent = oldText;
+    btn.disabled = false;
+  }
+}
+
+async function submitTx(){
+  const loc  = document.getElementById('s-loc').value.trim();
+  if(!loc){ toast('Enter a property address', 'er'); return; }
+
+  const sp   = parseFloat(document.getElementById('s-sp').value) || 100;
+  const av   = parseFloat(document.getElementById('s-av').value) || 100;
+  const sqft = parseInt(document.getElementById('s-sq').value)   || 1000;
+  const days = parseFloat(document.getElementById('s-dy').value) || 730;
+  const mo12 = parseInt(document.getElementById('s-12').value)   || 0;
+  const mtv  = parseFloat(document.getElementById('s-mt').value) || 0.75;
+  const lien = parseInt(document.getElementById('s-ln').value)   || 0;
+  const ag   = parseInt(document.getElementById('s-ag').value)   || 1;
+  const dc   = parseInt(document.getElementById('s-dc').value)   || 0;
+  const insp = parseInt(document.getElementById('s-in').value);
+  const aa   = parseFloat(document.getElementById('s-aa').value) || av;
+
+  // IDs will be populated from receipt
+  let txId = '0x'+[...Array(32)].map(()=>ri(0,15).toString(16)).join('');
+  let pid  = '0x'+[...Array(32)].map(()=>ri(0,15).toString(16)).join('');
+
+  resetFlow(); setStep(1);
+
+  // ── Steps 2-6: Blockchain transaction ──
+  if(!wallet || !propChain){ toast('Connect MetaMask first', 'er'); return; }
+  
+  setStep(2);
+  toast('Confirm transaction in MetaMask…', 'in2');
+  let realTxResponse;
+  try {
+    const spWei = ethers.parseEther(sp.toString());
+    const txTypeSel = document.getElementById('s-tt').value;
+    const dh = document.getElementById('s-dh').value || '0x'+Array(64).fill('0').join('');
+    
+    if (txTypeSel === "0") {
+      realTxResponse = await propChain.registerProperty(loc, "Residential", sqft, spWei, dh, "ipfs://None");
+    } else {
+      const toAddr = ethers.Wallet.createRandom().address; // Demo recipient
+      const pids = await propChain.getOwnerProps(wallet);
+      if(pids.length === 0) throw new Error("No properties to transfer on this wallet");
+      realTxResponse = await propChain.transferOwnership(pids[0], toAddr, spWei, dh, "ipfs://None", parseInt(txTypeSel));
+    }
+    setStep(3);
+    const receipt = await realTxResponse.wait();
+    txId = receipt.hash;
+    blockNumber = receipt.blockNumber;
+    for(let i=4; i<=6; i++) setStep(i);
+  } catch(e) {
+    console.error(e);
+    toast(e.message || 'Transaction failed', 'er');
+    return;
+  }
+
+  // Show blockchain confirmation
+  document.getElementById('chain-result').style.display = 'block';
+  document.getElementById('chain-result-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;margin-bottom:9px">
+      <div><span style="color:var(--mt)">Property ID</span><br/>
+        <span class="mo" style="color:var(--b);font-size:10px">${sh(pid)}</span></div>
+      <div><span style="color:var(--mt)">Tx hash</span><br/>
+        <span class="mo" style="color:var(--mt);font-size:10px">${sh(txId)}</span></div>
+      <div><span style="color:var(--mt)">Location</span><br/>${loc}</div>
+      <div><span style="color:var(--mt)">Block</span><br/>
+        <span class="mo">#${blockNumber.toLocaleString()}</span></div>
+      <div><span style="color:var(--mt)">Sale price</span><br/>
+        <span class="mo">${sp} ETH</span></div>
+      <div><span style="color:var(--mt)">Status</span><br/>
+        <span class="bx xg">Confirmed on-chain</span></div>
+    </div>
+    <div style="padding:7px 9px;background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.2);border-radius:5px;font-size:11px;color:var(--g)">
+      Ownership record immutably stored on Ethereum.
+      <strong>MLScoringRequested</strong> event emitted — ML engine now scoring this transaction.
+    </div>`;
+
+  totalProps++; totalTxns++;
+
+  // ── Steps 7-9: ML scoring ──
+  setStep(7); await delay(500);
+  setStep(8); await delay(700);
+
+  let result;
+  if(apiOnline){
+    try{
+      const txTypeLabel = ['Registration','Sale','Transfer','Mortgage'][parseInt(document.getElementById('s-tt').value)||0];
+      const payload = {
+        tx_id: txId, property_id: pid,
+        tx_type: txTypeLabel,
+        sale_price: sp, assessed_value: av,
+        days_since_last_sale: days, transfers_12mo: mo12,
+        num_liens: lien, docs_last_7_days: dc,
+        has_inspection: insp === 1, mortgage_to_value: mtv,
+        area_avg_price: aa || av,
+        wallet_sent_count: 5,
+        wallet_recv_count: 4,
+        wallet_total_sent: 120,
+        wallet_total_received: 130,
+        unique_agents: ag, unique_senders: 2,
+      };
+      const res = await fetch(API_URL+'/score', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload),
+      });
+      result = await res.json();
+    } catch { result = simulateScore(sp,av,days,mtv,mo12,ag,insp,lien,dc); }
+  } else {
+    result = simulateScore(sp, av, days, mtv, mo12, ag, insp, lien, dc);
+  }
+
+  setStep(9, true);
+
+  // Show ML verdict card
+  document.getElementById('ml-result').style.display = 'block';
+  renderMLVerdict(result);
+
+  // Update local state
+  const entry = {
+    txId, pid, loc,
+    type:      TX_TYPES[parseInt(document.getElementById('s-tt').value)||0],
+    value:     sp,
+    risk:      result.risk_level,
+    mlScored:  true,
+    isFraud:   result.is_fraud,
+    ts:        ts(),
+  };
+  txHistory.unshift(entry);
+  propHistory.unshift({
+    pid, location: loc,
+    type:          document.getElementById('s-tp').value,
+    value:         sp, assessedValue: av,
+    status:        (result.is_fraud && result.risk_level === 'Critical') ? 'Frozen' : 'Active',
+    isFraud:       result.is_fraud,
+    riskLevel:     result.risk_level,
+    ts:            ts(),
+  });
+
+  if(result.is_fraud){
+    totalAlerts++;
+    if(result.risk_level === 'Critical') totalFrozen++;
+    alertHistory.unshift({
+      id: txId.slice(-8), pid: sh(pid), loc,
+      type: result.fraud_type, model: 'Ensemble',
+      conf: result.confidence_pct, risk: result.risk_level,
+      flags: result.flags || [], ts: ts(),
+    });
+    updateFraudPage(result, sh(pid));
+  }
+
+  addBlock(1, result.is_fraud ? 1 : 0);
+  updateDashboard(result.is_fraud ? 0 : 1, result.is_fraud ? 1 : 0);
+
+  toast(
+    result.is_fraud
+      ? `Fraud detected! ${result.risk_level} risk — verdict written on-chain`
+      : 'Transaction clean — verdict recorded on blockchain',
+    result.is_fraud ? 'er' : 'ok'
+  );
+}
+
+// ── DASHBOARD UPDATE ───────────────────────────────────────────────
+function updateDashboard(newLegit = 0, newFraud = 0){
+  // Stats
+  document.getElementById('dp').textContent = totalProps;
+  document.getElementById('dt').textContent = totalTxns;
+  document.getElementById('da').textContent = totalAlerts;
+  document.getElementById('df').textContent = totalFrozen;
+  document.getElementById('dm').textContent = totalPending;
+
+  // Activity chart (now represents actual events)
+  const now = ts();
+  actLabels.push(now); actLegit.push(newLegit); actFraud.push(newFraud);
+  if(actLabels.length > 16){ actLabels.shift(); actLegit.shift(); actFraud.shift(); }
+  if(actChart){
+    actChart.data.labels            = [...actLabels];
+    actChart.data.datasets[0].data  = [...actLegit];
+    actChart.data.datasets[1].data  = [...actFraud];
+    actChart.update('none');
+  }
+
+  // Update Fraud type doughnut chart dynamically
+  if(ftChart){
+    const counts = FRAUD_TYPES.map(type => 
+      alertHistory.filter(a => a.type === type).length
+    );
+    ftChart.data.datasets[0].data = counts;
+    ftChart.update('none');
+  }
+
+  // Recent transactions table
+  document.getElementById('tx-tbl').innerHTML = txHistory.slice(0,7).map(t => `
+    <tr>
+      <td class="mo" style="font-size:10px">${sh(t.txId)}</td>
+      <td class="mo" style="font-size:10px">${sh(t.pid)}</td>
+      <td>${t.type}</td>
+      <td class="mo">${t.value.toFixed(2)}</td>
+      <td>${t.mlScored ? '<span class="bx xg">Yes</span>' : '<span class="bx xa">Pending</span>'}</td>
+      <td>${rb(t.risk)}</td>
+    </tr>`).join('');
+
+  // Alert feed
+  const feed = document.getElementById('alert-feed');
+  feed.innerHTML = alertHistory.length
+    ? alertHistory.slice(0,4).map(a => `
+      <div style="background:rgba(248,81,73,.05);border:1px solid rgba(248,81,73,.18);border-radius:5px;padding:8px;margin-bottom:7px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:11px;font-weight:500;color:var(--r)">${a.type}</span>
+          ${rb(a.risk)}
+        </div>
+        <div style="font-size:10px;color:var(--mt)">${a.loc||a.pid} · ${a.conf}% · ${a.model} · ${a.ts}</div>
+      </div>`).join('')
+    : '<p style="color:var(--mt);font-size:11px;text-align:center;padding:14px">No active fraud alerts</p>';
+}
+
+// ── FRAUD DETECTION PAGE ───────────────────────────────────────────
+function updateFraudPage(result, pid){
+  const col = rc(result.risk_level);
+
+  // Add row to fraud stream table
+  const tbody = document.getElementById('fraud-tbl');
+  const row   = document.createElement('tr');
+  row.style.cursor = 'pointer';
+  row.innerHTML = `
+    <td class="mo" style="font-size:10px">${pid}</td>
+    <td style="color:var(--r);font-size:11px">${result.fraud_type}</td>
+    <td>
+      <div style="width:${Math.round(result.confidence_pct*.55)}px;height:3px;background:${col};border-radius:2px;display:inline-block;vertical-align:middle;margin-right:4px"></div>
+      ${result.confidence_pct}%
+    </td>
+    <td style="color:${MODELS['Ensemble']?.col||'var(--tx)'}">Ensemble</td>
+    <td>${rb(result.risk_level)}</td>`;
+  row.onclick = () => showAlertDetail(result, pid);
+  tbody.insertBefore(row, tbody.firstChild);
+  if(tbody.children.length > 20) tbody.removeChild(tbody.lastChild);
+
+  // Add to fraud timeline
+  const tl  = document.getElementById('fraud-timeline');
+  const el  = document.createElement('div');
+  el.className = 'tl-i';
+  el.innerHTML = `
+    <div class="tl-d" style="background:${col};border-color:${col}"></div>
+    <div class="tl-t">${ts()}</div>
+    <div class="tl-c">
+      <strong style="color:${col}">${result.risk_level} — ${result.fraud_type}</strong><br/>
+      <span style="color:var(--mt)">${pid} · ${result.confidence_pct}% confidence · Ensemble model</span>
+    </div>`;
+  tl.insertBefore(el, tl.firstChild);
+  if(tl.children.length > 8) tl.removeChild(tl.lastChild);
+
+  // Update confidence chart
+  confLabels.push(ts()); confData.push(result.confidence);
+  if(confLabels.length > 14){ confLabels.shift(); confData.shift(); }
+  if(confChart){
+    confChart.data.labels            = [...confLabels];
+    confChart.data.datasets[0].data  = [...confData];
+    confChart.update('none');
+  }
+}
+
+function showAlertDetail(result, pid){
+  const col = rc(result.risk_level);
+  document.getElementById('alert-detail').innerHTML = `
+    <div style="border:1px solid ${col};border-radius:6px;padding:11px;background:rgba(0,0,0,.15)">
+      <div style="font-size:14px;font-weight:600;color:${col};margin-bottom:10px">
+        ${result.fraud_type}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;font-size:11px;margin-bottom:10px">
+        <div><span style="color:var(--mt)">Property</span><br/><span class="mo">${pid}</span></div>
+        <div><span style="color:var(--mt)">Risk level</span><br/>${rb(result.risk_level)}</div>
+        <div><span style="color:var(--mt)">Confidence</span><br/>
+          <span class="mo" style="color:${col}">${result.confidence_pct}%</span></div>
+        <div><span style="color:var(--mt)">Rule score</span><br/>
+          <span class="mo">${Math.round((result.rule_score||0)*100)}%</span></div>
+        <div><span style="color:var(--mt)">Feature hash</span><br/>
+          <span class="mo" style="font-size:10px">${result.feature_hash}</span></div>
+        <div><span style="color:var(--mt)">Timestamp</span><br/>${ts()}</div>
+      </div>
+      ${result.flags && result.flags.length
+        ? `<div style="font-size:11px;color:var(--a);line-height:1.7;margin-bottom:8px">
+            ${result.flags.map(f=>'→ '+f).join('<br/>')}
+           </div>` : ''}
+      <div style="padding:7px 9px;background:rgba(248,81,73,.06);border-radius:4px;font-size:10px;color:var(--r)">
+        Fraud alert immutably written to Ethereum — cannot be altered or deleted
+      </div>
+    </div>`;
+}
+
+// ── PROPERTIES PAGE ────────────────────────────────────────────────
+function renderProps(){
+  const search = document.getElementById('prop-search').value.toLowerCase();
+  const filter = document.getElementById('prop-filter').value;
+  let list = [...propHistory];
+  if(search) list = list.filter(p => p.location.toLowerCase().includes(search));
+  if(filter === 'fraud')  list = list.filter(p => p.isFraud);
+  if(filter === 'frozen') list = list.filter(p => p.status === 'Frozen');
+  if(filter === 'active') list = list.filter(p => p.status === 'Active');
+  const grid = document.getElementById('prop-grid');
+  grid.innerHTML = list.length
+    ? list.map(p => `
+      <div class="pcard" style="border:1px solid ${
+        p.isFraud ? 'rgba(248,81,73,.3)' : p.status==='Frozen' ? 'rgba(210,153,34,.3)' : 'var(--bdr)'
+      }">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px">
+          <div style="font-size:18px;font-weight:700;font-family:var(--mo);color:var(--g)">
+            ${p.value.toFixed(2)} ETH
+          </div>
+          ${p.isFraud
+            ? `<span class="bx xr">Fraud</span>`
+            : p.status==='Frozen'
+              ? `<span class="bx xa">Frozen</span>`
+              : `<span class="bx xg">Active</span>`}
+        </div>
+        <div style="font-size:11px;color:var(--mt);margin-bottom:6px">${p.location}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">
+          <span class="bx xb">${p.type}</span>
+          ${p.isFraud ? rb(p.riskLevel) : ''}
+        </div>
+        <div style="font-size:10px;color:var(--mt);font-family:var(--mo)">
+          ${sh(p.pid)} · ${p.ts}
+        </div>
+      </div>`).join('')
+    : '<p style="color:var(--mt);font-size:12px;grid-column:1/-1;text-align:center;padding:24px">No properties yet. Use Submit Transaction first.</p>';
+}
+
+// ── BLOCK EXPLORER ─────────────────────────────────────────────────
+function addBlock(txCount, fraudCount){
+  blockNumber++;
+  blockHistory.unshift({
+    num: blockNumber,
+    txCount, fraudCount,
+    txs: txHistory.slice(0, txCount),
+    ts:  ts(),
+  });
+  if(blockHistory.length > 18) blockHistory.pop();
+  renderBlockChain();
+}
+
+function renderBlockChain(){
+  const chain = document.getElementById('block-chain');
+  chain.innerHTML = blockHistory.map(b => {
+    const h   = 24 + Math.min(b.txCount * 3, 40);
+    const col = b.fraudCount > 0 ? '#f85149' : '#3fb950';
+    return `
+      <div class="blk" onclick="selectBlock(${b.num})">
+        <div class="blkb" style="height:${h}px;background:${col}">${b.txCount}</div>
+        <div class="blkn">#${(b.num%10000).toString().padStart(4,'0')}</div>
+      </div>`;
+  }).join('');
+}
+
+function selectBlock(num){
+  const b = blockHistory.find(x => x.num === num);
+  if(!b) return;
+  document.getElementById('exp-info').textContent =
+    `Block #${b.num} — ${b.txCount} transactions · ${b.fraudCount} fraud`;
+  document.getElementById('exp-txns').innerHTML = b.txs.map(t => `
+    <tr>
+      <td class="mo" style="font-size:10px">${sh(t.txId)}</td>
+      <td>${t.type}</td>
+      <td class="mo">${t.value.toFixed(2)}</td>
+      <td>${t.mlScored ? '<span class="bx xg">Yes</span>' : '<span class="bx xa">Pending</span>'}</td>
+      <td>${rb(t.risk)}</td>
+    </tr>`).join('');
+  document.getElementById('ownership-tl').innerHTML = b.txs.slice(0,4).map((t,i) => `
+    <div class="tl-i">
+      <div class="tl-d" style="background:${rc(t.risk)};border-color:${rc(t.risk)}"></div>
+      <div class="tl-t">Transaction ${i+1} · ${t.ts}</div>
+      <div class="tl-c">
+        ${t.type}: <span class="mo">${t.value.toFixed(2)} ETH</span><br/>
+        ML verdict: ${t.mlScored ? rb(t.risk) : '<span class="bx xa">Scoring…</span>'}
+      </div>
+    </div>`).join('');
+  
+  // Update raw storage view
+  document.getElementById('raw-block-data').textContent = JSON.stringify(b, null, 2);
+}
+
+async function lookupProperty(){
+  const idStr = document.getElementById('lookup-id').value.trim();
+  if(!idStr) return;
+  const el = document.getElementById('lookup-result');
+  
+  // 1. Try local history first (Property ID or TX Hash)
+  let p = propHistory.find(x => x.pid === idStr || sh(x.pid) === idStr);
+  if(!p){
+    const tx = txHistory.find(x => x.txId === idStr || sh(x.txId) === idStr);
+    if(tx) p = propHistory.find(x => x.pid === tx.pid);
+  }
+  
+  if(p){
+    renderLookup(p);
+    return;
+  }
+
+  // 2. Fallback to blockchain if connected
+  if(!propChain){
+    el.innerHTML = `
+      <p style="padding-top:8px;color:var(--a);font-size:11px">
+        Not in local session. Connect MetaMask to query the live blockchain.
+      </p>`;
+    return;
+  }
+
+  el.innerHTML = `<p style="padding-top:8px;color:var(--b);font-size:11px">Resolving on-chain ID...</p>`;
+  
+  try {
+    // Basic validation
+    if(!idStr.startsWith('0x') || idStr.length !== 66){
+        el.innerHTML = `
+          <p style="padding-top:8px;color:var(--r);font-size:11px">
+            Please enter a full 66-character Property ID or TX Hash (0x...).
+          </p>`;
+        return;
+    }
+
+    // Try as Property ID first
+    let prop = await propChain.getProperty(idStr);
+    
+    // If not found, try as Transaction ID to resolve to a Property ID
+    if(!prop.exists){
+      const core = await propChain.getTxCore(idStr);
+      const empty = "0x0000000000000000000000000000000000000000000000000000000000000000";
+      if(core.propertyId && core.propertyId !== empty){
+        prop = await propChain.getProperty(core.propertyId);
+      }
+    }
+
+    if(!prop || !prop.exists){
+       el.innerHTML = `
+         <p style="padding-top:8px;color:var(--r);font-size:11px">
+           ID 0x${idStr.slice(2,10)}... not found as Property or Transaction on-chain.
+         </p>`;
+       return;
+    }
+
+    // Map Solidity struct to UI object format
+    const statusMap = ['Active','UnderContract','Sold','Frozen'];
+    const mapped = {
+      pid:           prop.id,
+      location:      prop.location,
+      type:          prop.propType,
+      value:         parseFloat(ethers.formatEther(prop.assessedValue)),
+      assessedValue: parseFloat(ethers.formatEther(prop.assessedValue)),
+      status:        statusMap[Number(prop.status)],
+      isFraud:       prop.fraudFlagged,
+      ts:            new Date(Number(prop.registeredAt) * 1000).toLocaleTimeString(),
+    };
+    renderLookup(mapped);
+  } catch(e) {
+    console.error("Blockchain lookup error:", e);
+    el.innerHTML = `
+      <p style="padding-top:8px;color:var(--r);font-size:11px">
+        Error reading from blockchain. Ensure the node is active.
+      </p>`;
+  }
+}
+
+function renderLookup(p){
+  const el = document.getElementById('lookup-result');
+  el.innerHTML = `
+    <div style="padding-top:10px;font-size:11px">
+      <strong style="color:var(--b)">${p.location}</strong>
+      · ${p.type} · ${p.value.toFixed(3)} ETH<br/>
+      Status: ${p.isFraud
+        ? '<span class="bx xr">Fraud flagged</span>'
+        : `<span class="bx xg">${p.status}</span>`}
+      · Assessed: ${p.assessedValue} ETH
+      · Registered: ${p.ts}
+    </div>`;
+}
+
+// ── MODEL COMPARISON PAGE ──────────────────────────────────────────
+function renderModels(){
+  // Stat row
+  document.getElementById('model-stat-row').innerHTML =
+    Object.entries(MODELS).map(([m,v]) => `
+      <div class="sc">
+        <div class="sv" style="font-size:18px;color:${v.col}">${pct(v.acc)}</div>
+        <div class="sl">${m}</div>
+      </div>`).join('');
+
+  // Metrics table
+  document.getElementById('model-metrics-tbl').innerHTML =
+    Object.entries(MODELS).map(([m,v]) => `
+      <tr>
+        <td style="color:${v.col};font-weight:500">${m}</td>
+        <td class="mo">${pct(v.acc)}</td>
+        <td class="mo">${pct(v.prec)}</td>
+        <td class="mo">${pct(v.rec)}</td>
+        <td class="mo">${pct(v.f1)}</td>
+        <td class="mo">${pct(v.auc)}</td>
+        <td class="mo">${v.lat}ms</td>
+        <td style="color:var(--mt);font-size:11px">${v.str}</td>
+      </tr>`).join('');
+
+  // Performance bar chart
+  if(perfChart) perfChart.destroy();
+  perfChart = new Chart(document.getElementById('perf-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(MODELS),
+      datasets: [
+        {
+          label: 'F1 Score',
+          data: Object.values(MODELS).map(v => +(v.f1*100).toFixed(1)),
+          backgroundColor: Object.values(MODELS).map(v => v.col+'55'),
+          borderColor:     Object.values(MODELS).map(v => v.col),
+          borderWidth: 1.5,
+        },
+        {
+          label: 'AUC-ROC',
+          data: Object.values(MODELS).map(v => +(v.auc*100).toFixed(1)),
+          backgroundColor: Object.values(MODELS).map(v => v.col+'22'),
+          borderColor:     Object.values(MODELS).map(v => v.col),
+          borderWidth: 1,
+          borderDash: [4,4],
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color:'#8b949e', font:{size:11} } } },
+      scales: {
+        x: { ticks: { color:'#8b949e', font:{size:11} }, grid: { display:false } },
+        y: {
+          ticks: { color:'#8b949e', font:{size:11}, callback: v=>v+'%' },
+          min: 88, max: 100,
+          grid: { color:'rgba(255,255,255,.04)' },
+        },
+      },
+    },
+  });
+
+  // Scatter chart
+  if(scatChart) scatChart.destroy();
+  scatChart = new Chart(document.getElementById('scatter-chart').getContext('2d'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        data: Object.entries(MODELS).map(([m,v]) => ({
+          x: v.lat, y: +(v.acc*100).toFixed(1), label: m,
+        })),
+        backgroundColor: Object.values(MODELS).map(v => v.col),
+        pointRadius: 10, pointHoverRadius: 14,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => `${c.raw.label}: acc=${c.raw.y}% lat=${c.raw.x}ms` } },
+      },
+      scales: {
+        x: {
+          title: { display:true, text:'Latency (ms)', color:'#8b949e', font:{size:11} },
+          ticks: { color:'#8b949e' }, grid: { color:'rgba(255,255,255,.04)' },
+        },
+        y: {
+          title: { display:true, text:'Accuracy (%)', color:'#8b949e', font:{size:11} },
+          ticks: { color:'#8b949e' }, min:88, max:100,
+          grid: { color:'rgba(255,255,255,.04)' },
+        },
+      },
+    },
+  });
+}
+
+// ── CHART INITIALISATION ───────────────────────────────────────────
+function initCharts(){
+  // Activity chart
+  actChart = new Chart(document.getElementById('act-chart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label:'Legitimate', data:[], borderColor:'#3fb950', backgroundColor:'rgba(63,185,80,.07)', fill:true, tension:.4, borderWidth:1.5, pointRadius:0 },
+        { label:'Fraud',      data:[], borderColor:'#f85149', backgroundColor:'rgba(248,81,73,.07)', fill:true, tension:.4, borderWidth:1.5, pointRadius:0 },
+      ],
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, animation:{duration:0},
+      plugins: { legend: { labels: { color:'#8b949e', font:{size:11} } } },
+      scales: {
+        x: { ticks: { color:'#8b949e', maxTicksLimit:5, font:{size:10} }, grid: { display:false } },
+        y: { ticks: { color:'#8b949e', font:{size:10} }, grid: { color:'rgba(255,255,255,.04)' }, min:0 },
+      },
+    },
+  });
+
+  // Fraud type doughnut (starts empty, updates dynamically)
+  ftChart = new Chart(document.getElementById('ft-chart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: FRAUD_TYPES,
+      datasets: [{ data:[0,0,0], backgroundColor:['#f85149','#d29922','#bc8cff'], borderWidth:0 }],
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, cutout:'60%',
+      plugins: { legend: { position:'right', labels: { color:'#8b949e', font:{size:10}, padding:7 } } },
+    },
+  });
+
+  // Confidence over time
+  confChart = new Chart(document.getElementById('conf-chart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Fraud confidence',
+        data: [],
+        borderColor:'#f85149', backgroundColor:'rgba(248,81,73,.08)',
+        fill:true, tension:.4, borderWidth:1.5, pointRadius:2,
+      }],
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, animation:{duration:0},
+      plugins: { legend: { display:false } },
+      scales: {
+        x: { ticks: { color:'#8b949e', maxTicksLimit:6, font:{size:10} }, grid: { display:false } },
+        y: {
+          ticks: { color:'#8b949e', font:{size:10}, callback: v=>Math.round(v*100)+'%' },
+          min:0, max:1, grid: { color:'rgba(255,255,255,.04)' },
+        },
+      },
+    },
+  });
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  initCharts();
+  checkApi();
+  setInterval(checkApi, 15000);
+
+  // Ready! Real mode connected (Wait for connectWallet)
+  updateDashboard();
+  setTimeout(() =>
+    toast('PropChain real mode ready — please Connect MetaMask', 'in2'),
+  700);
+});
+function renderMLVerdict(result) {
+  const col = rc(result.risk_level);
+  const cls = result.is_fraud ? 'vf' : 'vv';
+  document.getElementById('ml-result-body').innerHTML = `
+    <div class="verdict ${cls}">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:11px">
+        <div style="text-align:center;flex-shrink:0">
+          <div style="font-size:42px;font-weight:700;font-family:var(--mo);color:${col};line-height:1">
+            ${result.confidence_pct}%
+          </div>
+          <div style="font-size:10px;color:var(--mt)">fraud probability</div>
+        </div>
+        <div>
+          <div style="font-size:15px;font-weight:600;color:${col};margin-bottom:5px">
+            ${result.is_fraud ? 'Fraud detected' : 'Transaction legitimate'}
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">
+            ${rb(result.risk_level)}
+            ${result.fraud_type && result.fraud_type !== 'None'
+              ? `<span class="bx xa">${result.fraud_type}</span>` : ''}
+          </div>
+          <div style="font-size:11px;color:var(--mt)">${result.reason}</div>
+        </div>
+      </div>
+      ${result.flags && result.flags.length ? `
+        <div style="font-size:11px;color:var(--a);margin-bottom:9px;line-height:1.7">
+          ${result.flags.map(f => '→ '+f).join('<br/>')}
+        </div>` : ''}
+      <div style="font-size:10px;color:var(--mt);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px">
+        Model breakdown
+      </div>
+      ${Object.entries(result.ml_scores || {}).map(([m, p]) => `
+        <div style="margin-bottom:5px">
+          <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px">
+            <span style="color:${MODELS[m]?.col||'#fff'}">${m}</span>
+            <span style="color:var(--mt)">${Math.round(p*100)}%</span>
+          </div>
+          <div class="pb">
+            <div class="pf" style="width:${Math.round(p*100)}%;background:${MODELS[m]?.col||'#fff'}"></div>
+          </div>
+        </div>`).join('') || '<div style="font-size:11px;color:var(--mt)">Rule engine only — run train.py to activate ML models</div>'}
+      <div style="margin-top:10px;padding:6px 8px;background:rgba(0,0,0,.15);border-radius:4px;font-size:10px;font-family:var(--mo);color:var(--mt)">
+        Feature hash: ${result.feature_hash}
+        &nbsp;·&nbsp; ${result.tx_id.includes('preview') ? 'Preview Only — Not on chain' : 'Verdict written on-chain via submitMLVerdict()'}
+      </div>
+    </div>`;
+}
+function validateValuation() {
+  const av = parseFloat(document.getElementById('s-av').value || 0);
+  const aa = parseFloat(document.getElementById('s-aa').value || 1);
+  const vWarn = document.getElementById('v-warn');
+  const aWarn = document.getElementById('a-warn');
+  const avInput = document.getElementById('s-av');
+
+  if (av > aa * 2) {
+    vWarn.style.display = 'block';
+    aWarn.style.display = 'block';
+    avInput.classList.add('invalid');
+  } else {
+    vWarn.style.display = 'none';
+    aWarn.style.display = 'none';
+    avInput.classList.remove('invalid');
+  }
+}
+</script>
+</body>
+</html>

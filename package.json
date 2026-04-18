@@ -1,0 +1,19 @@
+{
+  "name": "propchain",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Decentralized Real Estate Transaction Management System with ML Fraud Detection",
+  "scripts": {
+    "chain":    "npx hardhat node",
+    "deploy":   "npx hardhat run scripts/deploy.js --network localhost",
+    "backend":  "cd backend && python src/api.py",
+    "frontend": "cd frontend && npx serve . -p 3000",
+    "install:all": "npm install && cd frontend && npm install"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.0",
+    "dotenv": "^16.3.1",
+    "serve": "^14.2.0"
+  }
+}
